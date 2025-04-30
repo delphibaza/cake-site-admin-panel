@@ -20,15 +20,19 @@ interface ProductCardProps {
 const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
   return (
     <Card className="overflow-hidden">
-      <div className="aspect-square overflow-hidden">
-        <img 
-          src={product.image} 
-          alt={product.name} 
-          className="h-full w-full object-cover transition-transform hover:scale-105"
-        />
-      </div>
+      <Link to={`/product/${product.id}`} className="block">
+        <div className="aspect-square overflow-hidden">
+          <img 
+            src={product.image} 
+            alt={product.name} 
+            className="h-full w-full object-cover transition-transform hover:scale-105"
+          />
+        </div>
+      </Link>
       <CardContent className="p-4">
-        <h3 className="text-lg font-semibold">{product.name}</h3>
+        <Link to={`/product/${product.id}`} className="hover:underline">
+          <h3 className="text-lg font-semibold">{product.name}</h3>
+        </Link>
         <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
           {product.description}
         </p>
