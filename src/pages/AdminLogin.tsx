@@ -1,26 +1,39 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { LockKeyhole, LogIn } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminLogin = () => {
+  const { login, isAdmin } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Если пользователь уже авторизован как админ, перенаправляем в админку
+    const isAuthenticated = localStorage.getItem("adminAuth") === "true";
+    if (isAuthenticated) {
+      navigate("/admin");
+    }
+  }, [navigate]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Простая проверка для демо (в реальной системе - API запрос)
-    if (username === "admin" && password === "password") {
-      localStorage.setItem("adminAuth", "true");
+    setError("");
+    
+    // Используем систему аутентификации для входа
+    const success = await login(username, password);
+    
+    if (success && isAdmin) {
       navigate("/admin");
     } else {
-      setError("Неверное имя пользователя или пароль");
+      setError("Неверное имя пользователя или пароль, или у вас нет прав администратора");
     }
   };
 
@@ -42,11 +55,11 @@ const AdminLogin = () => {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="username">Имя пользователя</Label>
+              <Label htmlFor="username">Email</Label>
               <Input
                 id="username"
-                type="text"
-                placeholder="Введите имя пользователя"
+                type="email"
+                placeholder="admin@example.com"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
