@@ -9,6 +9,7 @@ import Catalog from "./pages/Catalog";
 import About from "./pages/About";
 import Contacts from "./pages/Contacts";
 import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
 import ProductDetail from "./pages/ProductDetail";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
@@ -17,6 +18,7 @@ import AdminProducts from "./pages/AdminProducts";
 import AdminOrders from "./pages/AdminOrders";
 import AdminCategories from "./pages/AdminCategories";
 import AdminReviews from "./pages/AdminReviews";
+import AdminAnalytics from "./pages/AdminAnalytics";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
@@ -35,6 +37,7 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -45,6 +48,7 @@ const App = () => (
           <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="/admin/categories" element={<AdminCategories />} />
           <Route path="/admin/reviews" element={<AdminReviews />} />
+          <Route path="/admin/analytics" element={<AdminAnalytics />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
