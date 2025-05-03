@@ -1,11 +1,13 @@
 
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Routes, Route } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Dashboard from "@/components/admin/Dashboard";
 import PageHeader from "@/components/admin/PageHeader";
 import CategoryCard from "@/components/admin/CategoryCard";
 import NewCategoryCard from "@/components/admin/NewCategoryCard";
+import AdminTasks from "./AdminTasks";
+import AdminReports from "./AdminReports";
 
 // Демо-данные
 const salesData = [
@@ -71,6 +73,10 @@ const Admin = () => {
         return 'Пользователи';
       case 'analytics':
         return 'Аналитика';
+      case 'tasks':
+        return 'Задачи';
+      case 'reports':
+        return 'Отчеты';
       case 'settings':
         return 'Настройки';
       case 'help':
@@ -92,55 +98,87 @@ const Admin = () => {
     console.log('Создание новой категории');
   };
 
-  return (
-    <AdminLayout>
-      {/* Заголовок страницы с контекстными действиями */}
-      <PageHeader 
-        title={getPageTitle()}
-        actionUrl={currentPath === 'products' ? "/admin/products/new" : undefined}
-        actionLabel={currentPath === 'products' ? "Добавить товар" : undefined}
-      />
-
-      {/* Содержимое дашборда */}
-      {currentPath === 'dashboard' && (
-        <Dashboard 
-          salesData={salesData} 
-          categoryData={categoryData} 
-          popularProducts={popularProducts} 
-          recentOrders={recentOrders} 
-        />
-      )}
-
-      {/* Содержимое категорий */}
-      {currentPath === 'categories' && (
-        <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {categories.map((category) => (
-              <CategoryCard 
-                key={category.id} 
-                id={category.id}
-                name={category.name} 
-                count={category.count} 
-                onView={handleCategoryView}
-                onEdit={handleCategoryEdit}
-              />
-            ))}
-            
-            {/* Карточка для создания новой категории */}
-            <NewCategoryCard onClick={handleNewCategory} />
-          </div>
-        </div>
-      )}
+  // Главный компонент админ-панели для конкретного маршрута
+  const AdminContent = () => {
+    // Содержимое панели управления
+    switch (currentPath) {
+      case 'dashboard':
+        return (
+          <>
+            <PageHeader title={getPageTitle()} />
+            <Dashboard 
+              salesData={salesData} 
+              categoryData={categoryData} 
+              popularProducts={popularProducts} 
+              recentOrders={recentOrders} 
+            />
+          </>
+        );
       
-      {/* Для других страниц содержимое */}
-      {currentPath !== 'dashboard' && currentPath !== 'categories' && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <p className="text-muted-foreground">
-            Страница находится в разработке
-          </p>
-        </div>
-      )}
-    </AdminLayout>
+      case 'categories':
+        return (
+          <>
+            <PageHeader 
+              title={getPageTitle()}
+              actionLabel="Добавить категорию"
+              onAction={handleNewCategory}
+            />
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {categories.map((category) => (
+                  <CategoryCard 
+                    key={category.id} 
+                    id={category.id}
+                    name={category.name} 
+                    count={category.count} 
+                    onView={handleCategoryView}
+                    onEdit={handleCategoryEdit}
+                  />
+                ))}
+                
+                {/* Карточка для создания новой категории */}
+                <NewCategoryCard onClick={handleNewCategory} />
+              </div>
+            </div>
+          </>
+        );
+      
+      case 'tasks':
+      case 'reports':
+        // Эти разделы обрабатываются через маршрутизацию
+        return null;
+      
+      default:
+        return (
+          <>
+            <PageHeader 
+              title={getPageTitle()}
+              actionUrl={currentPath === 'products' ? "/admin/products/new" : undefined}
+              actionLabel={currentPath === 'products' ? "Добавить товар" : undefined}
+            />
+            <div className="flex flex-col items-center justify-center py-12">
+              <p className="text-muted-foreground">
+                Страница находится в разработке
+              </p>
+            </div>
+          </>
+        );
+    }
+  };
+
+  return (
+    <Routes>
+      <Route path="tasks" element={<AdminTasks />} />
+      <Route path="reports" element={<AdminReports />} />
+      <Route 
+        path="*" 
+        element={
+          <AdminLayout>
+            <AdminContent />
+          </AdminLayout>
+        } 
+      />
+    </Routes>
   );
 };
 
