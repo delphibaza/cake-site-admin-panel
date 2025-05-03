@@ -1,73 +1,50 @@
 
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { 
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
-  DropdownMenuSeparator, DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { 
-  BarChart, ShoppingBag, Settings, LogOut, 
-  Cake, Tag, MessageSquare, Users, Home,
-  Bell, Search, LayoutDashboard, PieChart,
-  HelpCircle
-} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { 
+  LayoutDashboard, Cake, Tag, ShoppingBag, 
+  MessageSquare, Users, PieChart, Settings, 
+  HelpCircle, Activity
+} from "lucide-react";
 
-interface Notification {
-  id: number;
-  title: string;
-  message: string;
-  read: boolean;
-  date: string;
-}
+import AdminHeader from "./layout/AdminHeader";
+import AdminSidebar from "./layout/AdminSidebar";
+import SystemStatusIndicator from "./layout/SystemStatusIndicator";
+import { AdminLayoutProvider, useAdminLayout } from "./context/AdminLayoutContext";
+import type { AdminNavItem } from "./types/admin";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-interface AdminNavItem {
-  name: string;
-  path: string;
-  icon: React.ReactNode;
-}
-
-// Иконка пользователя
-const User = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-
-const AdminLayout = ({ children }: AdminLayoutProps) => {
+// Компонент внутренней реализации администраторской панели
+const AdminLayoutContent = ({ children }: AdminLayoutProps) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { currentUser, logout } = useAuth();
+  const { 
+    notifications, 
+    markAllNotificationsAsRead,
+    currentPath,
+    searchQuery,
+    setSearchQuery,
+    systemInfo,
+    updateSystem
+  } = useAdminLayout();
+  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: 1, title: "Новый заказ #1008", message: "Оформлен новый заказ на сумму 3450 ₽", read: false, date: "1 мая 2025" },
-    { id: 2, title: "Отзыв на товар", message: "Клиент оставил отзыв на Шоколадный торт", read: false, date: "30 апреля 2025" },
-    { id: 3, title: "Остаток товара", message: "Медовик (ID: 5) заканчивается на складе", read: true, date: "29 апреля 2025" },
-  ]);
+  const [serverStatus, setServerStatus] = useState<'active' | 'warning' | 'error' | 'loading'>('active');
 
   // Навигационные пункты
   const navItems: AdminNavItem[] = [
     { name: "Дашборд", path: "", icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
-    { name: "Товары", path: "products", icon: <Cake className="mr-2 h-4 w-4" /> },
+    { name: "Товары", path: "products", icon: <Cake className="mr-2 h-4 w-4" />, badge: 2 },
     { name: "Категории", path: "categories", icon: <Tag className="mr-2 h-4 w-4" /> },
-    { name: "Заказы", path: "orders", icon: <ShoppingBag className="mr-2 h-4 w-4" /> },
-    { name: "Отзывы", path: "reviews", icon: <MessageSquare className="mr-2 h-4 w-4" /> },
+    { name: "Заказы", path: "orders", icon: <ShoppingBag className="mr-2 h-4 w-4" />, badge: notifications.filter(n => n.type === 'order' && !n.read).length || undefined },
+    { name: "Отзывы", path: "reviews", icon: <MessageSquare className="mr-2 h-4 w-4" />, badge: notifications.filter(n => n.type === 'review' && !n.read).length || undefined },
     { name: "Пользователи", path: "users", icon: <Users className="mr-2 h-4 w-4" /> },
     { name: "Аналитика", path: "analytics", icon: <PieChart className="mr-2 h-4 w-4" /> },
+    { name: "Активность", path: "activity", icon: <Activity className="mr-2 h-4 w-4" /> },
   ];
 
   // Пункты настроек
@@ -76,16 +53,31 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { name: "Справка", path: "help", icon: <HelpCircle className="mr-2 h-4 w-4" /> },
   ];
 
-  // Путь текущей страницы (без префикса /admin/)
-  const currentPath = location.pathname.replace(/^\/admin\/?/, '') || 'dashboard';
-
+  // Проверка авторизации
   useEffect(() => {
-    // Проверка авторизации
     const isAuthenticated = localStorage.getItem("adminAuth") === "true";
     if (!isAuthenticated) {
       navigate("/admin/login");
     }
   }, [navigate]);
+
+  // Имитация периодической проверки статуса сервера
+  useEffect(() => {
+    const checkServerStatus = () => {
+      // В реальном приложении здесь был бы API-запрос
+      const statuses: Array<'active' | 'warning' | 'error' | 'loading'> = ['active', 'active', 'active', 'warning', 'active'];
+      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+      setServerStatus(randomStatus);
+    };
+
+    // Первичная проверка
+    checkServerStatus();
+
+    // Периодическая проверка каждые 30 секунд
+    const interval = setInterval(checkServerStatus, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -93,271 +85,49 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     navigate("/admin/login");
   };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
   // Определение активного пункта навигации
   const isActive = (path: string) => {
     return path === currentPath || (path === "" && currentPath === "dashboard");
   };
 
+  const handleUpdateSystem = async () => {
+    setServerStatus('loading');
+    try {
+      await updateSystem();
+      setServerStatus('active');
+    } catch (error) {
+      setServerStatus('error');
+      console.error('Failed to update system:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       {/* Верхняя панель */}
-      <header className="sticky top-0 z-40 border-b bg-white shadow-sm">
-        <div className="container flex h-16 items-center justify-between py-4">
-          <div className="flex items-center">
-            {/* Для мобильных устройств */}
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-              <SheetTrigger asChild className="md:hidden">
-                <Button variant="outline" size="icon" className="mr-2">
-                  <BarChart className="h-5 w-5" />
-                  <span className="sr-only">Меню</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
-                <div className="flex flex-col h-full">
-                  <div className="p-4 border-b">
-                    <h3 className="text-lg font-semibold">Админ-панель</h3>
-                  </div>
-                  <div className="flex-1 overflow-auto py-2">
-                    <nav className="grid gap-1 px-2">
-                      {navItems.map((item) => (
-                        <Link 
-                          key={item.path} 
-                          to={`/admin${item.path ? `/${item.path}` : ''}`}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <Button 
-                            variant={isActive(item.path) ? "secondary" : "ghost"} 
-                            className="w-full justify-start"
-                          >
-                            {item.icon} {item.name}
-                          </Button>
-                        </Link>
-                      ))}
-                      <Separator className="my-2" />
-                      {settingsItems.map((item) => (
-                        <Link 
-                          key={item.path} 
-                          to={`/admin/${item.path}`}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <Button 
-                            variant={isActive(item.path) ? "secondary" : "ghost"} 
-                            className="w-full justify-start"
-                          >
-                            {item.icon} {item.name}
-                          </Button>
-                        </Link>
-                      ))}
-                    </nav>
-                  </div>
-                  <div className="p-4 border-t">
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start text-red-500" 
-                      onClick={handleLogout}
-                    >
-                      <LogOut className="mr-2 h-4 w-4" /> Выход
-                    </Button>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-            
-            <Link to="/admin" className="flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2 h-6 w-6 text-pink-600"
-              >
-                <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"></path>
-                <path d="M12 8v8"></path>
-                <path d="M8 12h8"></path>
-              </svg>
-              <span className="hidden md:inline-block text-xl font-bold">
-                Sweet Cake
-              </span>
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <form className="hidden md:block">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input
-                  type="search"
-                  placeholder="Поиск..."
-                  className="w-64 rounded-lg border pl-8 shadow-none"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </form>
-
-            {/* Кнопка перехода на сайт */}
-            <Link to="/">
-              <Button variant="outline" size="sm" className="hidden md:flex">
-                <Home className="mr-2 h-4 w-4" />
-                На сайт
-              </Button>
-            </Link>
-
-            {/* Уведомления */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="relative">
-                  <Bell className="h-5 w-5" />
-                  {notifications.some(n => !n.read) && (
-                    <Badge 
-                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
-                    >
-                      {notifications.filter(n => !n.read).length}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <div className="flex items-center justify-between p-2">
-                  <h3 className="font-medium">Уведомления</h3>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-auto px-2 py-1 text-xs"
-                    onClick={markAllNotificationsAsRead}
-                  >
-                    Пометить все как прочитанные
-                  </Button>
-                </div>
-                <DropdownMenuSeparator />
-                <ScrollArea className="h-[300px]">
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-gray-500">
-                      Нет новых уведомлений
-                    </div>
-                  ) : (
-                    notifications.map((notification) => (
-                      <div key={notification.id} className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0">
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-1 h-2 w-2 rounded-full ${notification.read ? 'bg-transparent' : 'bg-blue-500'}`} />
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{notification.title}</p>
-                            <p className="text-xs text-gray-500">{notification.message}</p>
-                            <p className="text-xs text-gray-400 mt-1">{notification.date}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </ScrollArea>
-                <DropdownMenuSeparator />
-                <Button variant="ghost" size="sm" className="w-full justify-center p-2">
-                  Все уведомления
-                </Button>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Профиль пользователя */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src="https://i.pravatar.cc/150?img=68" alt="Администратор" />
-                    <AvatarFallback>A</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <div className="flex items-center gap-2 p-2">
-                  <div className="flex flex-col space-y-0.5">
-                    <p className="text-sm font-medium leading-none">{currentUser?.fullName || "Администратор"}</p>
-                    <p className="text-xs text-gray-500">{currentUser?.email || "admin@example.com"}</p>
-                  </div>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" /> Профиль
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/admin/settings" className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" /> Настройки
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-500">
-                  <LogOut className="mr-2 h-4 w-4" /> Выход
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </header>
+      <AdminHeader 
+        currentUser={currentUser}
+        navItems={navItems}
+        settingsItems={settingsItems}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        notifications={notifications}
+        markAllNotificationsAsRead={markAllNotificationsAsRead}
+        handleLogout={handleLogout}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+        isActive={isActive}
+      />
 
       {/* Основной контент с боковой навигацией */}
       <div className="container grid flex-1 md:grid-cols-[220px_1fr] lg:grid-cols-[240px_1fr]">
         {/* Боковая навигация (видимая только на десктопах) */}
-        <aside className="hidden md:flex border-r flex-col space-y-6 py-6">
-          <nav className="grid gap-1 px-2">
-            {navItems.map((item) => (
-              <Link key={item.path} to={`/admin${item.path ? `/${item.path}` : ''}`}>
-                <Button 
-                  variant={isActive(item.path) ? "secondary" : "ghost"} 
-                  className="w-full justify-start"
-                >
-                  {item.icon} {item.name}
-                </Button>
-              </Link>
-            ))}
-          </nav>
-
-          <div className="px-3 py-2">
-            <h3 className="mb-2 px-4 text-sm font-semibold tracking-tight">Настройки</h3>
-            <nav className="grid gap-1 px-2">
-              {settingsItems.map((item) => (
-                <Link key={item.path} to={`/admin/${item.path}`}>
-                  <Button 
-                    variant={isActive(item.path) ? "secondary" : "ghost"} 
-                    className="w-full justify-start"
-                  >
-                    {item.icon} {item.name}
-                  </Button>
-                </Link>
-              ))}
-            </nav>
-          </div>
-
-          <div className="mt-auto px-3">
-            <Card>
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm">Система v1.2.0</CardTitle>
-                <CardDescription className="text-xs">
-                  Последнее обновление: 01.05.2025
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 pt-2">
-                <div className="text-xs text-muted-foreground">
-                  <p>Новая версия панели управления доступна!</p>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3 w-full text-xs"
-                >
-                  Обновить сейчас
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </aside>
+        <AdminSidebar 
+          navItems={navItems}
+          settingsItems={settingsItems}
+          isActive={isActive}
+          systemInfo={systemInfo}
+          onUpdateSystem={handleUpdateSystem}
+        />
 
         {/* Основной контент */}
         <main className="flex-1 p-6">
@@ -366,11 +136,17 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       </div>
 
       {/* Индикатор активности сервера */}
-      <div className="fixed bottom-4 right-4 flex items-center gap-1 rounded-full bg-white/80 px-3 py-1 text-xs shadow-md backdrop-blur-sm">
-        <div className="h-2 w-2 rounded-full bg-green-500"></div>
-        <span>Сервер активен</span>
-      </div>
+      <SystemStatusIndicator status={serverStatus} />
     </div>
+  );
+};
+
+// Публичный компонент с контекстом
+const AdminLayout = ({ children }: AdminLayoutProps) => {
+  return (
+    <AdminLayoutProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </AdminLayoutProvider>
   );
 };
 
