@@ -9,6 +9,8 @@ export interface Notification {
   date: string;
   type?: 'order' | 'review' | 'system' | 'stock';
   link?: string;
+  severity?: 'low' | 'medium' | 'high';
+  icon?: ReactNode;
 }
 
 export interface AdminNavItem {
@@ -16,6 +18,8 @@ export interface AdminNavItem {
   path: string;
   icon: ReactNode;
   badge?: string | number;
+  description?: string;
+  children?: AdminNavItem[];
 }
 
 export interface SystemInfo {
@@ -23,6 +27,12 @@ export interface SystemInfo {
   lastUpdate: string;
   hasUpdate: boolean;
   updateVersion?: string;
+  serverDetails?: {
+    os: string;
+    uptime: string;
+    memory: string;
+    cpu: string;
+  };
 }
 
 export interface AdminLayoutContextType {
@@ -36,4 +46,26 @@ export interface AdminLayoutContextType {
   setSearchQuery: (query: string) => void;
   systemInfo: SystemInfo;
   updateSystem: () => Promise<boolean>;
+  sidebarCollapsed: boolean;
+  toggleSidebar: () => void;
 }
+
+export type StatsCardType = {
+  title: string;
+  value: string | number;
+  description?: string;
+  trend?: 'up' | 'down' | 'neutral';
+  trendValue?: string;
+  icon?: ReactNode;
+};
+
+export interface TableFilter {
+  id: string;
+  name: string;
+  options: {
+    value: string;
+    label: string;
+  }[];
+}
+
+export type Period = 'today' | 'yesterday' | 'week' | 'month' | 'quarter' | 'year' | 'custom';

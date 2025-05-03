@@ -7,19 +7,22 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
-  DropdownMenuSeparator, DropdownMenuTrigger 
+  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuGroup, DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
-  BarChart, Settings, LogOut, Home,
-  Bell, Search, User as UserIcon
+  BarChart, Settings, LogOut, Home, PanelLeft,
+  Bell, Search, User as UserIcon, Moon, Sun, ChevronDown,
+  Cog, HelpCircle
 } from "lucide-react";
 import type { AdminNavItem, Notification } from "../types/admin";
+import ThemeSettings from "../ThemeSettings";
+import { useAdminTheme } from "../AdminThemeProvider";
 
 interface AdminHeaderProps {
   currentUser: { fullName?: string; email?: string } | null;
   navItems: AdminNavItem[];
-  settingsItems: AdminNavItem[];
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   notifications: Notification[];
@@ -28,12 +31,13 @@ interface AdminHeaderProps {
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
   isActive: (path: string) => boolean;
+  toggleSidebar: () => void;
+  isCollapsed: boolean;
 }
 
 const AdminHeader = ({
   currentUser,
   navItems,
-  settingsItems,
   searchQuery,
   setSearchQuery,
   notifications,
@@ -41,13 +45,34 @@ const AdminHeader = ({
   handleLogout,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
-  isActive
+  isActive,
+  toggleSidebar,
+  isCollapsed
 }: AdminHeaderProps) => {
+  // Получаем тему из контекста
+  const { mode, toggleMode } = useAdminTheme();
+  
   // Количество непрочитанных уведомлений
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Группировка навигационных элементов по категориям для мобильного меню
+  const navGroups = navItems.reduce((acc, item) => {
+    const groupKey = item.path.includes('analytics') || item.path.includes('activity') || item.path.includes('reports') 
+      ? 'analytics' 
+      : item.path.includes('settings') || item.path.includes('help') || item.path.includes('manual') 
+        ? 'settings' 
+        : 'main';
+    
+    if (!acc[groupKey]) {
+      acc[groupKey] = [];
+    }
+    
+    acc[groupKey].push(item);
+    return acc;
+  }, {} as Record<string, AdminNavItem[]>);
+
   return (
-    <header className="sticky top-0 z-40 border-b bg-white shadow-sm">
+    <header className="sticky top-0 z-40 border-b bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
       <div className="container flex h-16 items-center justify-between py-4">
         <div className="flex items-center">
           {/* Для мобильных устройств */}
@@ -58,48 +83,106 @@ const AdminHeader = ({
                 <span className="sr-only">Меню</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
+            <SheetContent side="left" className="w-72 p-0">
               <div className="flex flex-col h-full">
-                <div className="p-4 border-b">
-                  <h3 className="text-lg font-semibold">Админ-панель</h3>
+                <div className="p-4 border-b dark:border-gray-700">
+                  <div className="flex items-center">
+                    <div className="mr-2 h-8 w-8 rounded-full bg-pink-100 flex items-center justify-center dark:bg-pink-900">
+                      <span className="text-pink-600 font-bold dark:text-pink-300">SC</span>
+                    </div>
+                    <h3 className="text-lg font-semibold">Админ-панель</h3>
+                  </div>
                 </div>
-                <div className="flex-1 overflow-auto py-2">
+                <ScrollArea className="flex-1 overflow-auto py-2">
                   <nav className="grid gap-1 px-2">
-                    {navItems.map((item) => (
-                      <Link 
-                        key={item.path} 
-                        to={`/admin${item.path ? `/${item.path}` : ''}`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Button 
-                          variant={isActive(item.path) ? "secondary" : "ghost"} 
-                          className="w-full justify-start"
-                        >
-                          {item.icon} {item.name}
-                        </Button>
-                      </Link>
-                    ))}
-                    <div className="my-2 border-t border-gray-100 pt-2" />
-                    {settingsItems.map((item) => (
-                      <Link 
-                        key={item.path} 
-                        to={`/admin/${item.path}`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Button 
-                          variant={isActive(item.path) ? "secondary" : "ghost"} 
-                          className="w-full justify-start"
-                        >
-                          {item.icon} {item.name}
-                        </Button>
-                      </Link>
-                    ))}
+                    {/* Основная навигация */}
+                    {navGroups.main && (
+                      <div className="py-2">
+                        <h4 className="px-3 mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                          УПРАВЛЕНИЕ
+                        </h4>
+                        {navGroups.main.map((item) => (
+                          <Link 
+                            key={item.path} 
+                            to={`/admin${item.path ? `/${item.path}` : ''}`}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Button 
+                              variant={isActive(item.path) ? "secondary" : "ghost"} 
+                              className="w-full justify-start"
+                            >
+                              <span className="flex items-center">
+                                {item.icon}
+                                <span className="ml-2">{item.name}</span>
+                              </span>
+                              {item.badge && (
+                                <Badge className="ml-auto" variant="outline">
+                                  {item.badge}
+                                </Badge>
+                              )}
+                            </Button>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Аналитика */}
+                    {navGroups.analytics && (
+                      <div className="py-2">
+                        <h4 className="px-3 mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                          АНАЛИТИКА
+                        </h4>
+                        {navGroups.analytics.map((item) => (
+                          <Link 
+                            key={item.path} 
+                            to={`/admin/${item.path}`}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Button 
+                              variant={isActive(item.path) ? "secondary" : "ghost"} 
+                              className="w-full justify-start"
+                            >
+                              <span className="flex items-center">
+                                {item.icon}
+                                <span className="ml-2">{item.name}</span>
+                              </span>
+                            </Button>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Настройки */}
+                    {navGroups.settings && (
+                      <div className="py-2">
+                        <h4 className="px-3 mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                          НАСТРОЙКИ
+                        </h4>
+                        {navGroups.settings.map((item) => (
+                          <Link 
+                            key={item.path} 
+                            to={`/admin/${item.path}`}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Button 
+                              variant={isActive(item.path) ? "secondary" : "ghost"} 
+                              className="w-full justify-start"
+                            >
+                              <span className="flex items-center">
+                                {item.icon}
+                                <span className="ml-2">{item.name}</span>
+                              </span>
+                            </Button>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                   </nav>
-                </div>
-                <div className="p-4 border-t">
+                </ScrollArea>
+                <div className="p-4 border-t dark:border-gray-700">
                   <Button 
                     variant="ghost" 
-                    className="w-full justify-start text-red-500" 
+                    className="w-full justify-start text-red-500 dark:text-red-400" 
                     onClick={handleLogout}
                   >
                     <LogOut className="mr-2 h-4 w-4" /> Выход
@@ -109,9 +192,20 @@ const AdminHeader = ({
             </SheetContent>
           </Sheet>
           
+          {/* Кнопка сворачивания/разворачивания сайдбара - только для десктопа */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="mr-2 hidden md:flex"
+            onClick={toggleSidebar}
+            aria-label={isCollapsed ? "Развернуть меню" : "Свернуть меню"}
+          >
+            <PanelLeft className={`h-5 w-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
+          </Button>
+          
           <Link to="/admin" className="flex items-center">
-            <div className="mr-2 h-8 w-8 rounded-full bg-pink-100 flex items-center justify-center">
-              <span className="text-pink-600 font-bold">SC</span>
+            <div className="mr-2 h-8 w-8 rounded-full bg-pink-100 flex items-center justify-center dark:bg-pink-900">
+              <span className="text-pink-600 font-bold dark:text-pink-300">SC</span>
             </div>
             <span className="hidden md:inline-block text-xl font-bold">
               Sweet Cake
@@ -119,14 +213,14 @@ const AdminHeader = ({
           </Link>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <form className="hidden md:block" onSubmit={(e) => e.preventDefault()}>
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
               <Input
                 type="search"
                 placeholder="Поиск..."
-                className="w-64 rounded-lg border pl-8 shadow-none"
+                className="w-64 rounded-lg border pl-8 shadow-none dark:bg-gray-800 dark:border-gray-700"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -141,10 +235,29 @@ const AdminHeader = ({
             </Button>
           </Link>
 
+          {/* Переключатель темы */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleMode}
+            className="hidden md:flex"
+          >
+            {mode === "dark" ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          </Button>
+
+          {/* Настройки темы */}
+          <div className="hidden md:block">
+            <ThemeSettings />
+          </div>
+
           {/* Уведомления */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="relative hover:bg-gray-100">
+              <Button variant="outline" size="icon" className="relative hover:bg-gray-100 dark:hover:bg-gray-700">
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
                   <Badge 
@@ -171,21 +284,21 @@ const AdminHeader = ({
               <DropdownMenuSeparator />
               <ScrollArea className="h-[300px]">
                 {notifications.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-gray-500">
+                  <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     Нет новых уведомлений
                   </div>
                 ) : (
                   notifications.map((notification) => (
                     <div 
                       key={notification.id} 
-                      className={`p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 ${notification.read ? '' : 'bg-blue-50/50'}`}
+                      className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border-b last:border-b-0 ${notification.read ? '' : 'bg-blue-50/50 dark:bg-blue-900/20'}`}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`mt-1 h-2 w-2 rounded-full ${notification.read ? 'bg-transparent' : 'bg-blue-500'}`} />
                         <div className="flex-1">
                           <p className="font-medium text-sm">{notification.title}</p>
-                          <p className="text-xs text-gray-500">{notification.message}</p>
-                          <p className="text-xs text-gray-400 mt-1">{notification.date}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{notification.message}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{notification.date}</p>
                         </div>
                       </div>
                     </div>
@@ -204,33 +317,63 @@ const AdminHeader = ({
           {/* Профиль пользователя */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                <Avatar className="h-9 w-9">
+              <Button variant="ghost" className="relative gap-1.5 pl-0.5 pr-1.5 py-1.5">
+                <Avatar className="h-7 w-7">
                   <AvatarImage src="https://i.pravatar.cc/150?img=68" alt="Администратор" />
                   <AvatarFallback>{currentUser?.fullName?.[0] || "A"}</AvatarFallback>
                 </Avatar>
+                <span className="hidden md:inline max-w-[100px] truncate text-sm font-medium">
+                  {currentUser?.fullName || "Администратор"}
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <div className="flex items-center gap-2 p-2">
-                <div className="flex flex-col space-y-0.5">
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{currentUser?.fullName || "Администратор"}</p>
-                  <p className="text-xs text-gray-500">{currentUser?.email || "admin@example.com"}</p>
+                  <p className="text-xs text-muted-foreground">{currentUser?.email || "admin@example.com"}</p>
                 </div>
-              </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/profile" className="cursor-pointer">
-                  <UserIcon className="mr-2 h-4 w-4" /> Профиль
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/admin/settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" /> Настройки
-                </Link>
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="cursor-pointer">
+                    <UserIcon className="mr-2 h-4 w-4" /> Профиль
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" /> Настройки
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/help" className="cursor-pointer">
+                    <HelpCircle className="mr-2 h-4 w-4" /> Справка
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-red-500">
+              
+              {/* Настройки темы (на мобильных устройствах) */}
+              <DropdownMenuGroup className="md:hidden">
+                <DropdownMenuItem onClick={toggleMode}>
+                  {mode === "dark" ? (
+                    <Sun className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Moon className="mr-2 h-4 w-4" />
+                  )}
+                  {mode === "dark" ? "Светлая тема" : "Темная тема"}
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/appearance" className="cursor-pointer">
+                    <Cog className="mr-2 h-4 w-4" /> Внешний вид
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator className="md:hidden" />
+              
+              <DropdownMenuItem onClick={handleLogout} className="text-red-500 dark:text-red-400">
                 <LogOut className="mr-2 h-4 w-4" /> Выход
               </DropdownMenuItem>
             </DropdownMenuContent>

@@ -2,91 +2,173 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { AdminNavItem } from "../types/admin";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ChevronRight, ChevronLeft } from "lucide-react";
+import type { AdminNavItem, SystemInfo } from "../types/admin";
 
 interface AdminSidebarProps {
-  navItems: AdminNavItem[];
+  mainNavItems: AdminNavItem[];
+  analyticsItems: AdminNavItem[];
   settingsItems: AdminNavItem[];
   isActive: (path: string) => boolean;
-  systemInfo: {
-    version: string;
-    lastUpdate: string;
-    hasUpdate: boolean;
-  };
+  systemInfo: SystemInfo;
   onUpdateSystem: () => void;
+  isCollapsed: boolean;
+  toggleCollapse: () => void;
 }
 
 const AdminSidebar = ({ 
-  navItems, 
+  mainNavItems, 
+  analyticsItems,
   settingsItems, 
   isActive, 
   systemInfo,
-  onUpdateSystem
+  onUpdateSystem,
+  isCollapsed,
+  toggleCollapse
 }: AdminSidebarProps) => {
-  return (
-    <aside className="hidden md:flex border-r flex-col space-y-6 py-6">
-      <nav className="grid gap-1 px-2">
-        {navItems.map((item) => (
-          <Link key={item.path} to={`/admin${item.path ? `/${item.path}` : ''}`}>
-            <Button 
-              variant={isActive(item.path) ? "secondary" : "ghost"} 
-              className="w-full justify-start"
-            >
-              {item.icon} {item.name}
-              {item.badge && (
-                <span className="ml-auto rounded-full bg-pink-100 px-2 py-0.5 text-xs font-medium text-pink-600">
-                  {item.badge}
-                </span>
-              )}
-            </Button>
-          </Link>
-        ))}
-      </nav>
-
-      <div className="px-3 py-2">
-        <h3 className="mb-2 px-4 text-sm font-semibold tracking-tight">Настройки</h3>
+  // Компонент навигационной секции
+  const NavSection = ({ 
+    items, 
+    title, 
+    className = "" 
+  }: { 
+    items: AdminNavItem[]; 
+    title?: string; 
+    className?: string; 
+  }) => {
+    return (
+      <div className={`py-2 ${className}`}>
+        {title && !isCollapsed && (
+          <h3 className="mb-2 px-4 text-xs font-semibold tracking-tight text-muted-foreground">
+            {title}
+          </h3>
+        )}
         <nav className="grid gap-1 px-2">
-          {settingsItems.map((item) => (
-            <Link key={item.path} to={`/admin/${item.path}`}>
+          {items.map((item) => {
+            const isActiveItem = isActive(item.path);
+            
+            // Создаем кнопку навигации
+            const NavButton = (
               <Button 
-                variant={isActive(item.path) ? "secondary" : "ghost"} 
-                className="w-full justify-start"
+                variant={isActiveItem ? "secondary" : "ghost"} 
+                className={`w-full justify-start ${isCollapsed ? 'h-10 w-10 p-0 justify-center' : ''}`}
               >
-                {item.icon} {item.name}
+                {item.icon && (
+                  <span className={`${isCollapsed ? '' : 'mr-2'} h-4 w-4`}>
+                    {item.icon}
+                  </span>
+                )}
+                {!isCollapsed && (
+                  <span className="truncate">{item.name}</span>
+                )}
+                {!isCollapsed && item.badge && (
+                  <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                    {item.badge}
+                  </span>
+                )}
               </Button>
-            </Link>
-          ))}
+            );
+            
+            // Если меню свернуто, оборачиваем в тултип
+            return (
+              <div key={item.path}>
+                {isCollapsed ? (
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link to={`/admin${item.path ? `/${item.path}` : ''}`}>
+                          {NavButton}
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="flex flex-col gap-1">
+                        <span className="font-medium">{item.name}</span>
+                        {item.description && (
+                          <span className="text-xs text-muted-foreground">{item.description}</span>
+                        )}
+                        {item.badge && (
+                          <span className="text-xs bg-primary/10 px-2 py-0.5 rounded-full text-primary font-medium">
+                            {item.badge}
+                          </span>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <Link to={`/admin${item.path ? `/${item.path}` : ''}`}>
+                    {NavButton}
+                  </Link>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </div>
+    );
+  };
 
-      <div className="mt-auto px-3">
-        <Card>
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm">Система v{systemInfo.version}</CardTitle>
-            <CardDescription className="text-xs">
-              Последнее обновление: {systemInfo.lastUpdate}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-2">
-            {systemInfo.hasUpdate ? (
-              <div className="text-xs text-muted-foreground">
-                <p>Новая версия панели управления доступна!</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3 w-full text-xs"
-                  onClick={onUpdateSystem}
-                >
-                  Обновить сейчас
-                </Button>
-              </div>
-            ) : (
-              <div className="text-xs text-muted-foreground">
-                <p>Ваша система обновлена до последней версии.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+  return (
+    <aside className={`hidden md:flex border-r dark:border-gray-700 flex-col py-6 overflow-hidden transition-all duration-300 ${
+      isCollapsed ? 'md:w-[64px]' : 'md:w-[220px] lg:w-[240px]'
+    }`}>
+      {/* Основная навигация */}
+      <NavSection items={mainNavItems} title="Управление" />
+      
+      {/* Аналитика */}
+      <NavSection items={analyticsItems} title="Аналитика" className="mt-4" />
+      
+      {/* Настройки */}
+      <NavSection items={settingsItems} title="Настройки" className="mt-4" />
+      
+      {/* Информация о системе и кнопка сворачивания */}
+      <div className="mt-auto px-3 flex flex-col gap-3">
+        {/* Карточка системной информации (только при развернутом сайдбаре) */}
+        {!isCollapsed && (
+          <Card className="bg-card/60">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-medium">Система v{systemInfo.version}</CardTitle>
+              <CardDescription className="text-xs">
+                {systemInfo.lastUpdate}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              {systemInfo.hasUpdate ? (
+                <div className="text-xs text-muted-foreground">
+                  <p>Новая версия панели доступна!</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3 w-full text-xs"
+                    onClick={onUpdateSystem}
+                  >
+                    Обновить сейчас
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">
+                  <p>Система обновлена до последней версии.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Кнопка сворачивания/разворачивания меню */}
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={toggleCollapse}
+          className={`${isCollapsed ? 'mx-auto w-9 h-9 p-0' : ''}`}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <>
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Свернуть меню
+            </>
+          )}
+        </Button>
       </div>
     </aside>
   );
