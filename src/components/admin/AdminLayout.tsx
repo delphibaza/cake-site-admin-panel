@@ -1,57 +1,66 @@
 
-import { ReactNode, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
   DropdownMenuSeparator, DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/hooks/useAuth";
-import {
+import { 
   BarChart, ShoppingBag, Settings, LogOut, 
   Cake, Tag, MessageSquare, Users, Home,
   Bell, Search, LayoutDashboard, PieChart,
-  Calendar, HelpCircle, FileText
+  HelpCircle
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
-interface AdminLayoutProps {
-  children: ReactNode;
+interface Notification {
+  id: number;
   title: string;
-  actions?: ReactNode;
+  message: string;
+  read: boolean;
+  date: string;
 }
 
-const AdminLayout = ({ children, title, actions }: AdminLayoutProps) => {
+interface AdminLayoutProps {
+  children: React.ReactNode;
+}
+
+interface AdminNavItem {
+  name: string;
+  path: string;
+  icon: React.ReactNode;
+}
+
+// Иконка пользователя
+const User = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const AdminLayout = ({ children }: AdminLayoutProps) => {
+  const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [notifications, setNotifications] = useState<{ id: number; title: string; message: string; read: boolean }[]>([
-    { id: 1, title: "Новый заказ #1008", message: "Оформлен новый заказ на сумму 3450 ₽", read: false },
-    { id: 2, title: "Отзыв на товар", message: "Клиент оставил отзыв на Шоколадный торт", read: false },
-    { id: 3, title: "Остаток товара", message: "Медовик (ID: 5) заканчивается на складе", read: true },
+  const [notifications, setNotifications] = useState<Notification[]>([
+    { id: 1, title: "Новый заказ #1008", message: "Оформлен новый заказ на сумму 3450 ₽", read: false, date: "1 мая 2025" },
+    { id: 2, title: "Отзыв на товар", message: "Клиент оставил отзыв на Шоколадный торт", read: false, date: "30 апреля 2025" },
+    { id: 3, title: "Остаток товара", message: "Медовик (ID: 5) заканчивается на складе", read: true, date: "29 апреля 2025" },
   ]);
 
-  // Путь текущей страницы (без префикса /admin/)
-  const currentPath = location.pathname.replace(/^\/admin\/?/, '') || 'dashboard';
-
-  const handleLogout = () => {
-    logout();
-    localStorage.removeItem("adminAuth");
-  };
-
-  const markAllNotificationsAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
   // Навигационные пункты
-  const navItems = [
+  const navItems: AdminNavItem[] = [
     { name: "Дашборд", path: "", icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
     { name: "Товары", path: "products", icon: <Cake className="mr-2 h-4 w-4" /> },
     { name: "Категории", path: "categories", icon: <Tag className="mr-2 h-4 w-4" /> },
@@ -62,10 +71,31 @@ const AdminLayout = ({ children, title, actions }: AdminLayoutProps) => {
   ];
 
   // Пункты настроек
-  const settingsItems = [
+  const settingsItems: AdminNavItem[] = [
     { name: "Настройки", path: "settings", icon: <Settings className="mr-2 h-4 w-4" /> },
     { name: "Справка", path: "help", icon: <HelpCircle className="mr-2 h-4 w-4" /> },
   ];
+
+  // Путь текущей страницы (без префикса /admin/)
+  const currentPath = location.pathname.replace(/^\/admin\/?/, '') || 'dashboard';
+
+  useEffect(() => {
+    // Проверка авторизации
+    const isAuthenticated = localStorage.getItem("adminAuth") === "true";
+    if (!isAuthenticated) {
+      navigate("/admin/login");
+    }
+  }, [navigate]);
+
+  const handleLogout = () => {
+    logout();
+    localStorage.removeItem("adminAuth");
+    navigate("/admin/login");
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
 
   // Определение активного пункта навигации
   const isActive = (path: string) => {
@@ -220,6 +250,7 @@ const AdminLayout = ({ children, title, actions }: AdminLayoutProps) => {
                           <div className="flex-1">
                             <p className="font-medium text-sm">{notification.title}</p>
                             <p className="text-xs text-gray-500">{notification.message}</p>
+                            <p className="text-xs text-gray-400 mt-1">{notification.date}</p>
                           </div>
                         </div>
                       </div>
@@ -330,11 +361,6 @@ const AdminLayout = ({ children, title, actions }: AdminLayoutProps) => {
 
         {/* Основной контент */}
         <main className="flex-1 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-            {actions && <div className="flex items-center space-x-2">{actions}</div>}
-          </div>
-
           {children}
         </main>
       </div>
@@ -347,13 +373,5 @@ const AdminLayout = ({ children, title, actions }: AdminLayoutProps) => {
     </div>
   );
 };
-
-// Дополнительная иконка для пользователя
-const User = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
 
 export default AdminLayout;
